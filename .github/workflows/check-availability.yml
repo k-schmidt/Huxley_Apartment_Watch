@@ -2,8 +2,8 @@ name: Check Huxley Availability
 
 on:
   schedule:
-    # Runs every 30 minutes
-    - cron: '*/30 * * * *'
+    # Runs twice daily at 9am and 9pm UTC
+    - cron: '0 9,21 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
