@@ -1,0 +1,79 @@
+name: Check Huxley Availability
+
+on:
+  schedule:
+    # Runs every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore previous state
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .state
+          key: availability-state
+
+      - name: Read previous state
+        id: previous
+        run: |
+          if [ -f .state ]; then
+            echo "was_available=$(cat .state)" >> $GITHUB_OUTPUT
+          else
+            echo "was_available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check availability
+        id: check
+        run: |
+          if python huxley_monitor.py; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Save current state
+        run: echo "${{ steps.check.outputs.available }}" > .state
+
+      - name: Delete old cache
+        if: steps.cache.outputs.cache-hit == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete availability-state || true
+
+      - name: Save new state to cache
+        uses: actions/cache/save@v4
+        with:
+          path: .state
+          key: availability-state
+
+      - name: Send email notification
+        if: steps.check.outputs.available == 'true' && steps.previous.outputs.was_available == 'false'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_FROM }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Huxley 2-Bedroom Now Available!"
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM }}
+          body: |
+            Two-bedroom apartments are now available at Huxley Apartments!
+
+            Check availability: https://www.equityapartments.com/san-francisco-bay/redwood-city/huxley-apartments

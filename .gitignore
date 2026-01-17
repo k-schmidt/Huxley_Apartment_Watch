@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.huxley_state.json
+*.log
+.env
