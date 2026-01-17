@@ -26,7 +26,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .state
-          key: availability-state
+          key: availability-state-${{ github.run_id }}
+          restore-keys: |
+            availability-state-
 
       - name: Read previous state
         id: previous
@@ -50,17 +52,11 @@ jobs:
       - name: Save current state
         run: echo "${{ steps.check.outputs.available }}" > .state
 
-      - name: Delete old cache
-        if: steps.cache.outputs.cache-hit == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh cache delete availability-state || true
-
       - name: Save new state to cache
         uses: actions/cache/save@v4
         with:
           path: .state
-          key: availability-state
+          key: availability-state-${{ github.run_id }}
 
       - name: Send email notification
         if: steps.check.outputs.available == 'true' && steps.previous.outputs.was_available == 'false'
